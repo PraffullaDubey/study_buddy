@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Buddy — Voice Learning Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;800&family=Lexend+Mega:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    /* Reset & Base */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161b26;
+      --card:      #1e2538;
+      --border:    #2e3a55;
+      --accent:    #5b9cf6;
+      --accent2:   #a78bfa;
+      --green:     #4ade80;
+      --yellow:    #fbbf24;
+      --red:       #f87171;
+      --text:      #e8eaf0;
+      --muted:     #7a8aaa;
+      --font:      'Lexend', sans-serif;
+      --radius:    16px;
+    }
+
+    html { font-size: 18px; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 1rem 4rem;
+      line-height: 1.7;
+    }
+
+    /* Skip to main content link for screen readers */
+    .skip-link {
+      position: absolute; left: -9999px; top: 0;
+      background: var(--accent); color: #000;
+      padding: 0.5rem 1rem; font-weight: 700;
+      z-index: 999;
+    }
+    .skip-link:focus { left: 0; }
+
+    /* Header */
+    header {
+      width: 100%; max-width: 780px;
+      padding: 2.5rem 0 1.5rem;
+      text-align: center;
+    }
+
+    .logo-ring {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 84px; height: 84px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--accent2), var(--accent));
+      box-shadow: 0 0 40px rgba(91,156,246,0.45);
+      margin-bottom: 1rem;
+      font-size: 2.4rem;
+    }
+
+    h1 {
+      font-family: 'Lexend Mega', sans-serif;
+      font-size: clamp(1.8rem, 5vw, 2.6rem);
+      letter-spacing: -0.02em;
+      background: linear-gradient(120deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 0.4rem;
+    }
+
+    /* Status bar */
+    #status-bar {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 0.5rem 1.2rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+      transition: all 0.3s;
+    }
+
+    #status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+
+    #status-bar.listening #status-dot  { background: var(--red);    animation: pulse 1s infinite; }
+    #status-bar.thinking  #status-dot  { background: var(--yellow);  animation: pulse 0.6s infinite; }
+    #status-bar.speaking  #status-dot  { background: var(--green);   animation: pulse 0.8s infinite; }
+    #status-bar.ready     #status-dot  { background: var(--green);   animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* Conversation feed */
+    #chat-feed {
+      width: 100%; max-width: 780px;
+      min-height: 320px;
+      max-height: 52vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      scroll-behavior: smooth;
+      margin-bottom: 1.5rem;
+    }
+
+    #chat-feed:focus { outline: 3px solid var(--accent); }
+
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0.8rem; color: var(--muted);
+      font-size: 0.95rem; text-align: center;
+    }
+
+    .empty-state span { font-size: 3rem; }
+
+    .bubble {
+      max-width: 88%;
+      padding: 1rem 1.25rem;
+      border-radius: 14px;
+      font-size: 1rem;
+      line-height: 1.7;
+      animation: slideIn 0.25s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--accent);
+      color: #07101f;
+      font-weight: 600;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bubble.assistant {
+      align-self: flex-start;
+      background: var(--card);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .bubble .label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.3rem;
+      opacity: 0.65;
+    }
+
+    /* Controls */
+    .controls {
+      width: 100%; max-width: 780px;
+      display: flex; flex-direction: column;
+      gap: 1rem; align-items: center;
+    }
+
+    /* Big mic button */
+    #mic-btn {
+      width: 130px; height: 130px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 3.5rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+      box-shadow: 0 0 0 0 rgba(91,156,246,0);
+      outline: none;
+      position: relative;
+    }
+
+    #mic-btn:hover, #mic-btn:focus {
+      background: var(--card);
+      box-shadow: 0 0 0 8px rgba(91,156,246,0.15);
+    }
+
+    #mic-btn.recording {
+      border-color: var(--red);
+      background: rgba(248,113,113,0.1);
+      box-shadow: 0 0 0 14px rgba(248,113,113,0.12);
+      animation: ripple 1.2s infinite;
+    }
+
+    @keyframes ripple {
+      0%   { box-shadow: 0 0 0 0px rgba(248,113,113,0.3); }
+      100% { box-shadow: 0 0 0 24px rgba(248,113,113,0); }
+    }
+
+    .mic-hint {
+      font-size: 0.85rem; color: var(--muted);
+      text-align: center; letter-spacing: 0.02em;
+    }
+
+    /* Text input row */
+    .text-row {
+      display: flex; gap: 0.6rem;
+      width: 100%;
+    }
+
+    #text-input {
+      flex: 1;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 50px;
+      padding: 0.75rem 1.4rem;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #text-input:focus { border-color: var(--accent); }
+    #text-input::placeholder { color: var(--muted); }
+
+    .icon-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 50px;
+      padding: 0.75rem 1.4rem;
+      color: #07101f;
+      font-family: var(--font);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      outline: none;
+      white-space: nowrap;
+    }
+
+    .icon-btn:hover   { opacity: 0.88; }
+    .icon-btn:active  { transform: scale(0.97); }
+    .icon-btn:focus   { box-shadow: 0 0 0 3px var(--accent2); }
+
+    .icon-btn.secondary {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* Action row */
+    .action-row {
+      display: flex; gap: 0.6rem; flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Voice selector */
+    select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:focus { border-color: var(--accent); }
+
+    /* Transcript overlay */
+    #live-transcript {
+      font-size: 0.9rem; color: var(--accent2);
+      font-style: italic; min-height: 1.4em;
+      text-align: center;
+    }
+
+    /* ── Toast ────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 1.5rem; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); padding: 0.7rem 1.5rem;
+      border-radius: 50px; font-size: 0.9rem;
+      transition: transform 0.3s ease;
+      pointer-events: none; z-index: 100;
+    }
+
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Keyboard shortcut hint */
+    .kbd-hint {
+      font-size: 0.78rem; color: var(--muted);
+      text-align: center; margin-top: 0.2rem;
+    }
+    kbd {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 4px; padding: 0.1rem 0.4rem;
+      font-family: monospace; font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <header>
+    <div class="logo-ring" aria-hidden="true">🎓</div>
+    <h1>Study Buddy</h1>
+    <p class="tagline">Your voice-powered learning companion — ask anything, learn everything</p>
+  </header>
+
+  <div id="status-bar" role="status" aria-live="polite" aria-atomic="true">
+    <div id="status-dot"></div>
+    <span id="status-text">Ready — press Space or tap the mic to ask a question</span>
+  </div>
+
+  <main id="main" style="width:100%;max-width:780px;display:contents;">
+    <div
+      id="chat-feed"
+      role="log"
+      aria-label="Conversation history"
+      aria-live="polite"
+      tabindex="0"
+    >
+      <div class="empty-state" id="empty-state">
+        <span aria-hidden="true">🔊</span>
+        <p>Press the big microphone button below and ask any question to start learning!</p>
+        <p style="font-size:0.82rem;margin-top:0.3rem;">Try: "Explain photosynthesis" or "Tell me about the solar system"</p>
+      </div>
+    </div>
+
+    <div class="controls" role="region" aria-label="Voice controls">
+      <div id="live-transcript" aria-live="assertive" aria-label="Live transcript"></div>
+
+      <button
+        id="mic-btn"
+        aria-label="Hold to speak — press Space bar as shortcut"
+        aria-pressed="false"
+      >🎤</button>
+
+      <p class="mic-hint" id="mic-hint">Tap to start recording &bull; Tap again to send</p>
+      <p class="kbd-hint">Shortcut: <kbd>Space</kbd> to record &nbsp;|&nbsp; <kbd>Enter</kbd> to send text</p>
+
+      <div class="text-row">
+        <label for="text-input" class="sr-only" style="position:absolute;left:-9999px;">Type your question</label>
+        <input
+          type="text"
+          id="text-input"
+          placeholder="Or type your question here..."
+          aria-label="Type your question"
+          autocomplete="off"
+        />
+        <button class="icon-btn" id="send-btn" aria-label="Send typed question">Send</button>
+      </div>
+
+      <div class="action-row">
+        <button class="icon-btn secondary" id="stop-btn" aria-label="Stop speaking">⏹ Stop</button>
+        <button class="icon-btn secondary" id="clear-btn" aria-label="Clear conversation history">🗑 Clear</button>
+        <label for="voice-select" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:var(--muted);">
+          Voice:
+          <select id="voice-select" aria-label="Select speaking voice">
+            <option value="Aman" selected>Aman</option>
+            <option value="Samantha">Samantha</option>
+            <option value="Alex">Alex</option>
+            <option value="Karen">Karen</option>
+            <option value="Daniel">Daniel</option>
+            <option value="Moira">Moira</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" role="alert" aria-live="assertive"></div>
+
+<script>
+// State
+const SESSION_ID = "session_" + Math.random().toString(36).slice(2, 9);
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let isBusy = false;
+
+// DOM refs
+const micBtn        = document.getElementById("mic-btn");
+const sendBtn       = document.getElementById("send-btn");
+const stopBtn       = document.getElementById("stop-btn");
+const clearBtn      = document.getElementById("clear-btn");
+const textInput     = document.getElementById("text-input");
+const chatFeed      = document.getElementById("chat-feed");
+const statusBar     = document.getElementById("status-bar");
+const statusText    = document.getElementById("status-text");
+const liveTranscript= document.getElementById("live-transcript");
+const voiceSelect   = document.getElementById("voice-select");
+const emptyState    = document.getElementById("empty-state");
+const toast         = document.getElementById("toast");
+
+// Helpers
+function setStatus(state, text) {
+  statusBar.className = state;
+  statusText.textContent = text;
+}
+
+function showToast(msg, duration = 2800) {
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), duration);
+}
+
+function addBubble(role, text) {
+  if (emptyState) emptyState.remove();
+  const div = document.createElement("div");
+  div.className = `bubble ${role}`;
+  const label = document.createElement("div");
+  label.className = "label";
+  label.textContent = role === "user" ? "You" : "Study Buddy";
+  div.appendChild(label);
+  const p = document.createElement("p");
+  p.textContent = text;
+  div.appendChild(p);
+  chatFeed.appendChild(div);
+  chatFeed.scrollTop = chatFeed.scrollHeight;
+  return div;
+}
+
+// ── Detect best supported audio format (Safari needs mp4, Chrome prefers webm) ─
+function getSupportedMimeType() {
+  const types = [
+    "audio/mp4",           // Safari (must be first — Safari lies about webm support)
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/ogg",
+  ];
+  // Safari-specific detection: check userAgent
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isSafari) return "audio/mp4";
+  for (const type of types) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return "";  // browser will choose
+}
+
+// Check microphone permission state
+async function checkMicPermission() {
+  try {
+    const result = await navigator.permissions.query({ name: "microphone" });
+    return result.state; // "granted" | "denied" | "prompt"
+  } catch (_) {
+    return "prompt"; // permissions API not supported (older Safari) — just try
+  }
+}
+
+// Recording
+async function startRecording() {
+  if (isBusy) { showToast("Please wait — still processing…"); return; }
+
+  // Guard: Safari on HTTP (non-localhost) blocks mediaDevices entirely
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast("Microphone API unavailable. Make sure you are on https://localhost:8080", 7000);
+    setStatus("ready", "Microphone API not available in this context");
+    return;
+  }
+
+  // Pre-check permission state
+  const permState = await checkMicPermission();
+  if (permState === "denied") {
+    setStatus("ready", "Microphone blocked — fix in Safari Settings");
+    showToast("Mic is blocked. Go to Safari > Settings > Websites > Microphone > set localhost to Allow", 6000);
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 16000,
+      }
+    });
+
+    const mimeType = getSupportedMimeType();
+    const options = mimeType ? { mimeType } : {};
+
+    audioChunks = [];
+    try {
+      mediaRecorder = new MediaRecorder(stream, options);
+    } catch (e) {
+      // fallback: let browser pick format
+      mediaRecorder = new MediaRecorder(stream);
+    }
+
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) audioChunks.push(e.data);
+    };
+    mediaRecorder.start(100); // collect in 100ms chunks (more reliable on Safari)
+    isRecording = true;
+    micBtn.classList.add("recording");
+    micBtn.setAttribute("aria-pressed", "true");
+    micBtn.textContent = "⏹";
+    setStatus("listening", "Listening… speak your question now");
+    liveTranscript.textContent = "🎙 Recording…";
+    document.getElementById("mic-hint").textContent = "Tap again to stop recording";
+  } catch (err) {
+    console.error("Mic error:", err.name, err.message);
+    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      showToast("Mic blocked. Safari → Settings → Websites → Microphone → Allow localhost", 7000);
+      setStatus("ready", "Microphone permission denied");
+    } else if (err.name === "NotFoundError") {
+      showToast("No microphone found. Please connect a microphone.", 5000);
+      setStatus("ready", "No microphone detected");
+    } else {
+      showToast("Microphone error: " + err.message, 5000);
+      setStatus("ready", "Microphone error — see toast");
+    }
+  }
+}
+
+async function stopRecording() {
+  if (!mediaRecorder) return;
+  return new Promise(resolve => {
+    mediaRecorder.onstop = async () => {
+      const mimeType = mediaRecorder.mimeType || "audio/mp4";
+      const ext = mimeType.includes("mp4") ? "m4a" : mimeType.includes("ogg") ? "ogg" : "webm";
+      const blob = new Blob(audioChunks, { type: mimeType });
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      mediaRecorder = null;
+      isRecording = false;
+      micBtn.classList.remove("recording");
+      micBtn.setAttribute("aria-pressed", "false");
+      micBtn.textContent = "🎤";
+      document.getElementById("mic-hint").textContent = "Tap to start recording • Tap again to send";
+      liveTranscript.textContent = "";
+      await processAudio(blob, ext);
+      resolve();
+    };
+    mediaRecorder.stop();
+  });
+}
+
+// Process audio → transcribe → chat → speak
+async function processAudio(blob, ext = "webm") {
+  isBusy = true;
+  setStatus("thinking", "Transcribing your speech…");
+
+  const formData = new FormData();
+  formData.append("audio", blob, `recording.${ext}`);
+
+  let transcript = "";
+  try {
+    const res = await fetch("/api/transcribe", { method: "POST", body: formData });
+    const data = await res.json();
+    if (data.error || !data.transcript) {
+      showToast("Couldn't understand speech — please try again");
+      setStatus("ready", "Ready — press Space or tap the mic");
+      isBusy = false;
+      return;
+    }
+    transcript = data.transcript;
+    liveTranscript.textContent = `Heard: "${transcript}"`;
+  } catch (err) {
+    showToast("Transcription failed. Is the server running?");
+    setStatus("ready", "Error — check the server");
+    isBusy = false;
+    return;
+  }
+
+  await sendMessage(transcript);
+}
+
+async function sendMessage(text) {
+  if (!text.trim()) return;
+  isBusy = true;
+  liveTranscript.textContent = "";
+
+  addBubble("user", text);
+  textInput.value = "";
+
+  setStatus("thinking", "Study Buddy is thinking…");
+
+  // Placeholder bubble while thinking
+  const thinkingBubble = addBubble("assistant", "…");
+  thinkingBubble.style.opacity = "0.5";
+
+  let response = "";
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: SESSION_ID, message: text })
+    });
+    const data = await res.json();
+    if (data.error) {
+      thinkingBubble.querySelector("p").textContent = "Error: " + data.error;
+      thinkingBubble.style.opacity = "1";
+      showToast(data.error, 5000);
+      setStatus("ready", "Error — see message above");
+      isBusy = false;
+      return;
+    }
+    response = data.response;
+  } catch (err) {
+    thinkingBubble.querySelector("p").textContent = "Could not reach server. Is it running?";
+    thinkingBubble.style.opacity = "1";
+    setStatus("ready", "Connection error");
+    isBusy = false;
+    return;
+  }
+
+  thinkingBubble.querySelector("p").textContent = response;
+  thinkingBubble.style.opacity = "1";
+
+  // Speak
+  setStatus("speaking", "Study Buddy is speaking…");
+  await speakText(response);
+  setStatus("ready", "Ready — ask a follow-up question or a new topic!");
+  isBusy = false;
+}
+
+async function speakText(text) {
+  try {
+    await fetch("/api/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voice: voiceSelect.value })
+    });
+    // Rough estimate: ~175 words per min, let status linger
+    const words = text.split(" ").length;
+    const ms = (words / 175) * 60 * 1000 + 800;
+    await new Promise(r => setTimeout(r, ms));
+  } catch (_) {
+    showToast("Text-to-speech unavailable");
+  }
+}
+
+// Event listeners
+micBtn.addEventListener("click", () => {
+  if (isRecording) stopRecording();
+  else startRecording();
+});
+
+sendBtn.addEventListener("click", () => {
+  const text = textInput.value.trim();
+  if (text) sendMessage(text);
+});
+
+textInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    const text = textInput.value.trim();
+    if (text) sendMessage(text);
+  }
+});
+
+stopBtn.addEventListener("click", async () => {
+  await fetch("/api/stop_speech", { method: "POST" });
+  setStatus("ready", "Speech stopped — ready for next question");
+  isBusy = false;
+  showToast("Stopped speaking");
+});
+
+clearBtn.addEventListener("click", async () => {
+  await fetch("/api/clear", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: SESSION_ID })
+  });
+  chatFeed.innerHTML = `
+    <div class="empty-state" id="empty-state">
+      <span aria-hidden="true">🔊</span>
+      <p>Conversation cleared! Ask a new question to start learning.</p>
+    </div>`;
+  setStatus("ready", "Cleared — ready for a fresh start!");
+  showToast("Conversation cleared");
+});
+
+// Space bar shortcut
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && e.target === document.body) {
+    e.preventDefault();
+    if (isRecording) stopRecording();
+    else startRecording();
+  }
+});
+
+// Init
+setStatus("ready", "Ready — press Space or tap the mic to ask a question");
+
+// Load voices from server — prefer Aman as default
+const DEFAULT_VOICE = "Aman";
+fetch("/api/voices").then(r => r.json()).then(data => {
+  if (data.voices && data.voices.length > 0) {
+    voiceSelect.innerHTML = "";
+    // Put Aman first if present
+    const sorted = data.voices.slice(0, 20).sort((a, b) =>
+      a === DEFAULT_VOICE ? -1 : b === DEFAULT_VOICE ? 1 : 0
+    );
+    sorted.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v; opt.textContent = v;
+      if (v === DEFAULT_VOICE) opt.selected = true;
+      voiceSelect.appendChild(opt);
+    });
+  }
+}).catch(() => {
+  // fallback: manually set Aman as selected if voices API fails
+  voiceSelect.value = DEFAULT_VOICE;
+});
+
+// Welcome speech on load
+setTimeout(() => {
+  speakText("Welcome to Study Buddy! I am your voice-powered learning companion. Press the microphone button and ask me about any topic you want to learn. Let us begin!");
+  setStatus("speaking", "Playing welcome message…");
+  setTimeout(() => setStatus("ready", "Ready — press Space or tap the mic to ask a question"), 6000);
+}, 800);
+</script>
+</body>
+</html>
